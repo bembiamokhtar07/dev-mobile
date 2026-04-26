@@ -39,6 +39,18 @@ $pdo->exec(
     )'
 );
 
+$productColumns = $pdo->query('PRAGMA table_info(products)')->fetchAll();
+$productColumnNames = [];
+foreach ($productColumns as $column) {
+    $productColumnNames[(string) ($column['name'] ?? '')] = true;
+}
+if (!isset($productColumnNames['category'])) {
+    $pdo->exec("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT 'Artisanat'");
+}
+if (!isset($productColumnNames['icon'])) {
+    $pdo->exec("ALTER TABLE products ADD COLUMN icon TEXT NOT NULL DEFAULT '🧵'");
+}
+
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,94 +74,147 @@ $pdo->exec(
     )'
 );
 
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )'
+);
+
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS admin_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        FOREIGN KEY(admin_id) REFERENCES admins(id) ON DELETE CASCADE
+    )'
+);
+
+$adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admins')->fetchColumn();
+if ($adminCount === 0) {
+    $seedAdmin = $pdo->prepare(
+        'INSERT INTO admins (username, password_hash, created_at)
+         VALUES (:username, :password_hash, :created_at)'
+    );
+    $seedAdmin->execute([
+        ':username' => ADMIN_USERNAME,
+        ':password_hash' => password_hash(ADMIN_PASSWORD, PASSWORD_DEFAULT),
+        ':created_at' => date('c'),
+    ]);
+}
+
 /**
- * 10 produits de demonstration (patrimoine, artisanat). Chaque ligne:
- * titre, description, URL image, prix (MRO), reduction %, stock
+ * 10 produits de demonstration. Chaque ligne:
+ * titre, description, URL image, prix (MRU), reduction %, stock, categorie, icone
  *
- * @return list<array{0:string,1:string,2:string,3:float,4:int,5:int}>
+ * @return list<array{0:string,1:string,2:string,3:float,4:int,5:int,6:string,7:string}>
  */
 function demo_product_samples(): array
 {
     return [
         [
-            'Vase en terre cuite grave',
-            'Vase ou poterie traditionnelle, motifs geometriques inspires de l architecture du desert.',
-            'https://images.unsplash.com/photo-1565193566174-5f6dc9fc216e?auto=format&fit=crop&w=900&q=80',
-            4850.00,
+            'Melhafa traditionnelle mauritanienne',
+            'Tissu elegant porte lors des ceremonies, confection artisanale locale.',
+            'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=80',
+            8900.00,
+            5,
             10,
+            'Textile',
+            '🧣',
+        ],
+        [
+            'Daraha (boubou mauritanien)',
+            'Boubou ample pour hommes, broderie traditionnelle du Sahara.',
+            'https://images.unsplash.com/photo-1594938328870-9623159c8c99?auto=format&fit=crop&w=1000&q=80',
+            9800.00,
+            0,
+            8,
+            'Vetement',
+            '👕',
+        ],
+        [
+            'The vert Gunpowder premium',
+            'The utilise dans le rituel de l ataya, parfum intense.',
+            'https://images.unsplash.com/photo-1597481499750-3e6b22637e12?auto=format&fit=crop&w=1000&q=80',
+            2200.00,
+            10,
+            20,
+            'The & Cafe',
+            '🍵',
+        ],
+        [
+            'Theiere ataya en metal',
+            'Theiere solide pour service du the mauritanien.',
+            'https://images.unsplash.com/photo-1583623025817-d180a2221d0a?auto=format&fit=crop&w=1000&q=80',
+            3900.00,
+            5,
+            12,
+            'Ustensiles',
+            '🫖',
+        ],
+        [
+            'Tapis maure tisse main',
+            'Tapis decoratif inspire des motifs nomades de Mauritanie.',
+            'https://images.unsplash.com/photo-1616627547584-bf28cee262db?auto=format&fit=crop&w=1000&q=80',
+            15500.00,
+            0,
+            4,
+            'Maison',
+            '🧶',
+        ],
+        [
+            'Bijou traditionnel en argent',
+            'Pendentif artisanal porte lors des fetes et mariages.',
+            'https://images.unsplash.com/photo-1617038220317-876f19d6c3f4?auto=format&fit=crop&w=1000&q=80',
+            5200.00,
+            8,
+            9,
+            'Bijoux',
+            '📿',
+        ],
+        [
+            'Encens bakhour saharien',
+            'Parfum d ambiance tres utilise dans les maisons mauritaniennes.',
+            'https://images.unsplash.com/photo-1603006905393-c2fc09f1383c?auto=format&fit=crop&w=1000&q=80',
+            1500.00,
+            0,
+            25,
+            'Parfum',
+            '🪔',
+        ],
+        [
+            'Coussin cuir artisanal',
+            'Coussin fabrique a Nouakchott, style saharien moderne.',
+            'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1000&q=80',
+            3600.00,
+            0,
             6,
+            'Decoration',
+            '🛋️',
         ],
         [
-            'Montre de poche vintage',
-            'Boitier metal, mecanisme d epoque, bon etat de marche.',
-            'https://images.unsplash.com/photo-1509048191080-d2e8e7f3d4e1?auto=format&fit=crop&w=900&q=80',
-            3200.00,
-            0,
-            4,
-        ],
-        [
-            'Sculpture en pierre tendre',
-            'Piece artisanale sculptee a la main, patine naturelle.',
-            'https://images.unsplash.com/photo-1577083552431-6e5fd75a5f62?auto=format&fit=crop&w=900&q=80',
-            6200.00,
-            15,
-            3,
-        ],
-        [
-            'Tapis noue main',
-            'Laine naturelle, motifs berberes, grand format salon.',
-            'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=900&q=80',
-            12500.00,
-            5,
-            2,
-        ],
-        [
-            'Bracelet argent cisel',
-            'Bijou argent avec motifs traditionnels, taille ajustable.',
-            'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=900&q=80',
-            2100.00,
-            0,
-            12,
-        ],
-        [
-            'Coffret en bois sculpte',
-            'Coffret de rangement, bois dur, decorations faconnees au ciseau.',
-            'https://images.unsplash.com/photo-1611486212557-88d67ddb6404?auto=format&fit=crop&w=900&q=80',
-            3800.00,
-            8,
-            5,
-        ],
-        [
-            'Dallah en cuivre martele',
-            'Cafe traditionnel, cuivre rouge, anse et bec ouvrages.',
-            'https://images.unsplash.com/photo-1514228742587-6bafd8b8502d?auto=format&fit=crop&w=900&q=80',
-            1650.00,
-            0,
-            8,
-        ],
-        [
-            'Corbeille en vannerie',
-            'Tressage sparte ou roseau, utile decoration.',
-            'https://images.unsplash.com/photo-1606800052052-a08af7148866?auto=format&fit=crop&w=900&q=80',
-            950.00,
-            0,
-            15,
-        ],
-        [
-            'Pendentif pierre et argent',
-            'Pierre semi-precieuse sertie, chainette argent fournie.',
-            'https://images.unsplash.com/photo-1617038220317-876f19d6c3f4?auto=format&fit=crop&w=900&q=80',
-            2750.00,
-            12,
+            'Miel naturel de l Adrar',
+            'Miel local collecte dans les oasis de l Adrar.',
+            'https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=1000&q=80',
+            3100.00,
             7,
+            14,
+            'Epicerie',
+            '🍯',
         ],
         [
-            'Encadrement calligraphie artisanale',
-            'Motifs geometriques peints sur support papier, cadre bois.',
-            'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a2?auto=format&fit=crop&w=900&q=80',
-            4400.00,
+            'Dattes premium des oasis',
+            'Selection de dattes moelleuses, consommation quotidienne et fetes.',
+            'https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&w=1000&q=80',
+            2400.00,
             0,
-            4,
+            22,
+            'Epicerie',
+            '🌴',
         ],
     ];
 }
@@ -157,8 +222,8 @@ function demo_product_samples(): array
 function insert_demo_products(PDO $pdo): void
 {
     $seed = $pdo->prepare(
-        'INSERT INTO products (title, description, image_url, price, discount_percent, stock, created_at)
-         VALUES (:title, :description, :image_url, :price, :discount, :stock, :created_at)'
+        'INSERT INTO products (title, description, image_url, price, discount_percent, stock, category, icon, created_at)
+         VALUES (:title, :description, :image_url, :price, :discount, :stock, :category, :icon, :created_at)'
     );
     $now = date('c');
     foreach (demo_product_samples() as $item) {
@@ -169,6 +234,8 @@ function insert_demo_products(PDO $pdo): void
             ':price' => $item[3],
             ':discount' => $item[4],
             ':stock' => $item[5],
+            ':category' => $item[6],
+            ':icon' => $item[7],
             ':created_at' => $now,
         ]);
     }
@@ -249,5 +316,57 @@ function cart_count(): int
 {
     cart_normalize_session();
     return array_sum($_SESSION['cart']);
+}
+
+function admin_find_by_username(PDO $pdo, string $username): ?array
+{
+    $stmt = $pdo->prepare('SELECT * FROM admins WHERE username = :username LIMIT 1');
+    $stmt->execute([':username' => $username]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+function admin_create_token(PDO $pdo, int $adminId): string
+{
+    $token = bin2hex(random_bytes(32));
+    $tokenHash = hash('sha256', $token);
+    $stmt = $pdo->prepare(
+        'INSERT INTO admin_tokens (admin_id, token_hash, created_at, expires_at)
+         VALUES (:admin_id, :token_hash, :created_at, :expires_at)'
+    );
+    $stmt->execute([
+        ':admin_id' => $adminId,
+        ':token_hash' => $tokenHash,
+        ':created_at' => date('c'),
+        ':expires_at' => date('c', time() + 60 * 60 * 24 * 7),
+    ]);
+    return $token;
+}
+
+function api_admin_from_bearer(PDO $pdo): ?array
+{
+    $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!preg_match('/Bearer\s+(.+)/i', $auth, $matches)) {
+        return null;
+    }
+    $token = trim($matches[1]);
+    if ($token === '') {
+        return null;
+    }
+    $tokenHash = hash('sha256', $token);
+    $stmt = $pdo->prepare(
+        'SELECT a.*
+         FROM admin_tokens t
+         JOIN admins a ON a.id = t.admin_id
+         WHERE t.token_hash = :token_hash
+           AND t.expires_at > :now
+         LIMIT 1'
+    );
+    $stmt->execute([
+        ':token_hash' => $tokenHash,
+        ':now' => date('c'),
+    ]);
+    $admin = $stmt->fetch();
+    return $admin ?: null;
 }
 

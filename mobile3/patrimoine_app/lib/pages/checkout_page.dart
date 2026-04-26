@@ -12,7 +12,7 @@ class CheckoutPage extends StatefulWidget {
 
   final List<CartItem> items;
   final double totalPrice;
-  final void Function({
+  final Future<String> Function({
     required String name,
     required String phone,
     required String address,
@@ -27,6 +27,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -34,6 +35,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    final message = await widget.onPlaceOrder(
+      name: _nameController.text,
+      phone: _phoneController.text,
+      address: _addressController.text,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _submitting = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -89,14 +104,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
         const SizedBox(height: 14),
         FilledButton(
-          onPressed: () {
-            widget.onPlaceOrder(
-              name: _nameController.text,
-              phone: _phoneController.text,
-              address: _addressController.text,
-            );
-          },
-          child: const Text('Confirmer la commande'),
+          onPressed: _submitting ? null : _submit,
+          child: Text(_submitting ? 'Envoi...' : 'Confirmer la commande'),
         ),
       ],
     );

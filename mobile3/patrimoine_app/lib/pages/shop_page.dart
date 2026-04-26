@@ -15,14 +15,16 @@ class ShopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final columns = width < 650 ? 2 : 3;
     return GridView.builder(
       padding: const EdgeInsets.all(14),
       itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.58,
+        childAspectRatio: width < 650 ? 0.62 : 0.58,
       ),
       itemBuilder: (context, index) {
         final product = products[index];

@@ -2,55 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../models/cart_item.dart';
 import '../models/product.dart';
+import '../services/api_client.dart';
 
 class ShopController extends ChangeNotifier {
-  final List<Product> _products = <Product>[
-    Product(
-      id: 1,
-      title: 'Melhafa Safran',
-      description: 'Etoffe traditionnelle aux teintes du desert.',
-      price: 2800,
-      discountPercent: 10,
-      stock: 8,
-      icon: '🧣',
-      category: 'Textile',
-    ),
-    Product(
-      id: 2,
-      title: 'Vannerie d oasis',
-      description: 'Corbeille artisanale en fibres naturelles.',
-      price: 1500,
-      discountPercent: 0,
-      stock: 12,
-      icon: '🧺',
-      category: 'Deco',
-    ),
-    Product(
-      id: 3,
-      title: 'Theiere en cuivre',
-      description: 'Piece marquee au marteau par un artisan local.',
-      price: 4200,
-      discountPercent: 15,
-      stock: 6,
-      icon: '🫖',
-      category: 'Cuisine',
-    ),
-    Product(
-      id: 4,
-      title: 'Collier saharien',
-      description: 'Bijou inspire des motifs mauritaniens.',
-      price: 2200,
-      discountPercent: 5,
-      stock: 10,
-      icon: '📿',
-      category: 'Bijoux',
-    ),
-  ];
+  ShopController({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+
+  final ApiClient _apiClient;
+  final List<Product> _products = <Product>[];
 
   final Map<int, int> _cart = <int, int>{};
-  int _nextId = 5;
+  bool _isLoading = false;
+  String? _lastError;
+  String? _adminToken;
 
   List<Product> get products => List<Product>.unmodifiable(_products);
+  bool get isLoading => _isLoading;
+  String? get lastError => _lastError;
 
   int get cartCount => _cart.values.fold(0, (sum, qty) => sum + qty);
 
@@ -63,6 +30,23 @@ class ShopController extends ChangeNotifier {
 
   double get totalPrice =>
       cartItems.fold(0, (sum, item) => sum + item.linePrice);
+
+  Future<void> loadProducts() async {
+    _isLoading = true;
+    _lastError = null;
+    notifyListeners();
+    try {
+      final fetched = await _apiClient.fetchProducts();
+      _products
+        ..clear()
+        ..addAll(fetched);
+    } catch (e) {
+      _lastError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   String addToCart(Product product) {
     final current = _cart[product.id] ?? 0;
@@ -84,31 +68,42 @@ class ShopController extends ChangeNotifier {
     notifyListeners();
   }
 
-  String placeOrder({
+  Future<String> placeOrder({
     required String name,
     required String phone,
     required String address,
-  }) {
+  }) async {
     if (cartItems.isEmpty) {
       return 'Votre panier est vide.';
     }
     if (name.trim().isEmpty || phone.trim().isEmpty || address.trim().isEmpty) {
       return 'Veuillez remplir tous les champs.';
     }
-    _cart.clear();
-    notifyListeners();
-    return 'Merci $name, votre commande est enregistree.';
+    try {
+      final message = await _apiClient.createOrder(
+        customerName: name.trim(),
+        customerPhone: phone.trim(),
+        customerAddress: address.trim(),
+        items: cartItems,
+      );
+      _cart.clear();
+      await loadProducts();
+      return message;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 
-  String addProduct({
+  Future<String> addProduct({
     required String title,
     required String description,
+    required String imageUrl,
     required double price,
     required int discountPercent,
     required int stock,
     required String icon,
     required String category,
-  }) {
+  }) async {
     final normalizedTitle = title.trim();
     final normalizedDescription = description.trim();
     if (normalizedTitle.isEmpty || normalizedDescription.isEmpty) {
@@ -120,21 +115,44 @@ class ShopController extends ChangeNotifier {
         discountPercent > 90) {
       return 'Valeurs invalides pour prix/stock/remise.';
     }
-
-    _products.insert(
-      0,
-      Product(
-        id: _nextId++,
+    if (imageUrl.trim().isEmpty) {
+      return 'URL image obligatoire.';
+    }
+    if (_adminToken == null) {
+      return 'Session admin invalide. Reconnectez-vous.';
+    }
+    try {
+      final message = await _apiClient.createProduct(
+        token: _adminToken!,
         title: normalizedTitle,
         description: normalizedDescription,
+        imageUrl: imageUrl.trim(),
         price: price,
         discountPercent: discountPercent,
         stock: stock,
         icon: icon.trim().isEmpty ? '🧵' : icon.trim(),
         category: category.trim().isEmpty ? 'Artisanat' : category.trim(),
-      ),
-    );
-    notifyListeners();
-    return 'Produit ajoute avec succes.';
+      );
+      await loadProducts();
+      return message;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  Future<bool> loginAdmin(String username, String password) async {
+    try {
+      _adminToken = await _apiClient.loginAdmin(
+        username: username.trim(),
+        password: password.trim(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void logoutAdmin() {
+    _adminToken = null;
   }
 }

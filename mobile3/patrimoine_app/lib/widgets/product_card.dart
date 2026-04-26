@@ -73,6 +73,22 @@ class ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 5),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: AspectRatio(
+                aspectRatio: 1.4,
+                child: Image.network(
+                  product.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.image_not_supported_outlined),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
             Text(
               product.title,
               maxLines: 1,
@@ -109,7 +125,7 @@ class ProductCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: onAdd,
+                onPressed: product.stock > 0 ? onAdd : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(24),
                   padding: EdgeInsets.zero,
@@ -118,7 +134,7 @@ class ProductCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: const Text('Ajouter'),
+                child: Text(product.stock > 0 ? 'Ajouter' : 'Rupture'),
               ),
             ),
           ],

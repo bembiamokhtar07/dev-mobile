@@ -50,8 +50,11 @@ class _ShopRootPageState extends State<ShopRootPage> {
   int _selectedTab = 0;
   bool _isAdminLoggedIn = false;
 
-  static const String _adminUser = 'admin';
-  static const String _adminPass = '1234';
+  @override
+  void initState() {
+    super.initState();
+    _controller.loadProducts();
+  }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(
@@ -63,25 +66,28 @@ class _ShopRootPageState extends State<ShopRootPage> {
     _showMessage(_controller.addToCart(product));
   }
 
-  bool _handleAdminLogin(String username, String password) {
-    final ok = username == _adminUser && password == _adminPass;
+  Future<bool> _handleAdminLogin(String username, String password) async {
+    final ok = await _controller.loginAdmin(username, password);
     if (ok) {
       setState(() => _isAdminLoggedIn = true);
     }
     return ok;
   }
 
-  void _placeOrder({
+  Future<String> _placeOrder({
     required String name,
     required String phone,
     required String address,
-  }) {
-    _showMessage(
-      _controller.placeOrder(name: name, phone: phone, address: address),
+  }) async {
+    final message = await _controller.placeOrder(
+      name: name,
+      phone: phone,
+      address: address,
     );
     if (_controller.cartItems.isEmpty) {
       setState(() => _selectedTab = 1);
     }
+    return message;
   }
 
   @override
@@ -106,6 +112,7 @@ class _ShopRootPageState extends State<ShopRootPage> {
               ? AdminPage(
                   onAddProduct:
                       ({
+                        required String imageUrl,
                         required String title,
                         required String description,
                         required double price,
@@ -115,6 +122,7 @@ class _ShopRootPageState extends State<ShopRootPage> {
                         required String category,
                       }) {
                         final message = _controller.addProduct(
+                          imageUrl: imageUrl,
                           title: title,
                           description: description,
                           price: price,
@@ -146,6 +154,7 @@ class _ShopRootPageState extends State<ShopRootPage> {
                   onPressed: () {
                     setState(() {
                       _isAdminLoggedIn = false;
+                      _controller.logoutAdmin();
                     });
                     _showMessage('تم تسجيل الخروج من الأدمن.');
                   },
@@ -153,7 +162,11 @@ class _ShopRootPageState extends State<ShopRootPage> {
                 ),
             ],
           ),
-          body: pages[_selectedTab],
+          body: _controller.isLoading && _selectedTab == 1
+              ? const Center(child: CircularProgressIndicator())
+              : _controller.lastError != null && _selectedTab == 1
+              ? Center(child: Text(_controller.lastError!))
+              : pages[_selectedTab],
           bottomNavigationBar: NavigationBar(
             selectedIndex: _selectedTab,
             onDestinationSelected: (index) =>

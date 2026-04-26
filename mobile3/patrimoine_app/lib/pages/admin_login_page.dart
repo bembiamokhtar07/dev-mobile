@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key, required this.onLoginSuccess});
 
-  final bool Function(String username, String password) onLoginSuccess;
+  final Future<bool> Function(String username, String password) onLoginSuccess;
 
   @override
   State<AdminLoginPage> createState() => _AdminLoginPageState();
@@ -12,6 +12,7 @@ class AdminLoginPage extends StatefulWidget {
 class _AdminLoginPageState extends State<AdminLoginPage> {
   final _userController = TextEditingController();
   final _passController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -20,11 +21,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     super.dispose();
   }
 
-  void _submit() {
-    final ok = widget.onLoginSuccess(
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    final ok = await widget.onLoginSuccess(
       _userController.text.trim(),
       _passController.text.trim(),
     );
+    if (mounted) {
+      setState(() => _submitting = false);
+    }
 
     if (!mounted) {
       return;
@@ -75,8 +80,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: _submit,
-                    child: const Text('دخول'),
+                    onPressed: _submitting ? null : _submit,
+                    child: Text(_submitting ? '...' : 'دخول'),
                   ),
                 ),
               ],

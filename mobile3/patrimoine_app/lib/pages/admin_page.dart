@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key, required this.onAddProduct});
 
-  final String Function({
+  final Future<String> Function({
+    required String imageUrl,
     required String title,
     required String description,
     required double price,
@@ -19,6 +20,7 @@ class AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<AdminPage> {
+  final _imageUrlController = TextEditingController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
@@ -30,6 +32,7 @@ class _AdminPageState extends State<AdminPage> {
   @override
   void dispose() {
     _titleController.dispose();
+    _imageUrlController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
     _discountController.dispose();
@@ -39,12 +42,13 @@ class _AdminPageState extends State<AdminPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final price = double.tryParse(_priceController.text.trim()) ?? -1;
     final discount = int.tryParse(_discountController.text.trim()) ?? -1;
     final stock = int.tryParse(_stockController.text.trim()) ?? -1;
 
-    final message = widget.onAddProduct(
+    final message = await widget.onAddProduct(
+      imageUrl: _imageUrlController.text,
       title: _titleController.text,
       description: _descriptionController.text,
       price: price,
@@ -64,6 +68,7 @@ class _AdminPageState extends State<AdminPage> {
 
     if (message.contains('succes')) {
       _titleController.clear();
+      _imageUrlController.clear();
       _descriptionController.clear();
       _priceController.clear();
       _discountController.text = '0';
@@ -95,6 +100,13 @@ class _AdminPageState extends State<AdminPage> {
                 TextField(
                   controller: _titleController,
                   decoration: const InputDecoration(labelText: 'Titre'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _imageUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL image produit',
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
